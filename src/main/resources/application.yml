@@ -1,0 +1,112 @@
+server:
+  port: 9000
+  netty:
+    connection-timeout: 2s
+    idle-timeout: 15s  # 데이터가 전송되지 않는 경우 tcp 연결을 끊키전 기다리는 시간
+  shutdown: graceful
+
+spring:
+  application:
+    name: edge-service
+  lifecycle:
+    timeout-per-shutdown-phase: 15s
+  cloud:
+    config:
+      uri: http://localhost:8888
+      request-connect-timeout: 5000
+      request-read-timeout: 5000
+      fail-fast: false # 재시도 작동
+      retry:
+        max-attempts: 6 # 최대 시도수
+        initial-interval: 1000 # 최초 재시도 지연 시간 (밀리초)
+        max-interval: 2000 # 재시도 지연 최대 시간
+        multiplier: 1.1 # 지연 시간 계산 승수
+
+    gateway:
+      routes:
+        - id: catalog-route
+          uri: ${CATALOG_SERVICE_URL:http://localhost:9001}/books
+          predicates:
+            - Path=/books/** # 해당경로를 술어로 적용하여 해당 술어와 일치하면 라우팅 해줌
+          filters:
+            - name: CircuitBreaker # 필터이름
+              args:
+                name: catalogCircuitBreaker # 서킷브레이커 이름
+                fallbackUri: forward:/catalog-fallback # 회로개방상태일때 해당 uri로 전달
+
+        - id: order-route
+          uri: ${ORDER_SERVICE_URL:http://localhost:9002}/orders
+          predicates:
+            - Path=/orders/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: orderCircuitBreaker
+
+
+      httpclient:
+        connect-timeout: 2
+        response-timeout: 5s
+        pool: # 동적으로 연결 풀을 늘린다
+          type: elastic
+          max-idle-time: 15s # 통신 채널이 닫히기전 기다리는 시간
+          max-life-time: 60s # 통신 채널이 열려있는 시간
+
+      default-filters: # 기본필터 목록
+        - name: Retry
+          args:
+            retires: 3
+            methods: GET
+            series: SERVER_ERROR
+            exceptions: java.io.IOException, java.util.concurrent.TimeoutException
+            backoff:
+              firstBackoff: 50ms
+              maxBackOff: 500ms
+              factor: 2
+              basedOnPreviousValue: false
+
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter: # 토큰 버킷 알고리즘 사용
+              replenishRate: 10 # 초당 버킷에 떨어지는 토큰의 수
+              burstCapacity: 20 # 최대 20개 요청까지 허용
+              requestedTokens: 1 # 하나의 요청 처리에 몇개 토큰이 사용되는지 지정
+              include-headers: false
+
+        - name: SaveSession
+
+  session:
+    timeout: 10m
+    redis:
+      repository-type: default
+      namespace: polar:edge
+
+  data:
+    redis:
+      connect-timeout: 2s
+      host: localhost
+      port: 6379
+      timeout: 1s
+  config:
+    import: "optional:configserver:"
+
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default: # 모든 서킷브레이커에 대한 기본 설정
+        sliding-window-size: 20 # 회로가 폐쇄된 상태일 때 호출 결과를 기록하는데 사용하는 슬라이딩 윈도의 크기 -> 20개의 호출 윈도에서 50% 이상 실패시 회로 개방
+        permitted-number-of-calls-in-half-open-state: 5 # 반개방 상태일 때 허용되는 호출 수
+        failure-rate-threshold: 50 # 실패 임계률
+        wait-duration-in-open-state:
+          seconds: 15 # 개방 -> 반개방 상태로 돌아갈때까지 기다리는 시간 15초
+  timelimiter:
+    configs:
+      defaults: # 모든 시간제한에 대한 기본 설정
+        timeout-duration:
+          seconds: 5
+
+
+logging:
+  level:
+    io.github.resilience4j: debug

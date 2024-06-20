@@ -25,19 +25,34 @@ repositories {
 
 ext {
     set('springCloudVersion', "2023.0.2")
+    set('testcontainersVersion', "1.17.3")
 }
 
+bootBuildImage{
+    imageName= "${project.name}"
+    environment=["BP_JVM_VERSION" : "17.*"]
+}
+
+
 dependencies {
-    implementation 'org.springframework.cloud:spring-cloud-starter-gateway-mvc'
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+    implementation 'org.springframework.session:spring-session-data-redis'
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
     }
 }
 
