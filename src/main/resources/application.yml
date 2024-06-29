@@ -6,6 +6,20 @@ server:
   shutdown: graceful
 
 spring:
+  # 시큐리티 키클록
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak: # 클라이언트를 식별하는 식별자
+            client-id: edge-service
+            client-secret: polar-keycloak-secret
+            scope: openid, roles # 반환되는 토큰의 클레임 지정
+
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/realms/PolarBookshop
+
   application:
     name: edge-service
   lifecycle:
@@ -43,6 +57,12 @@ spring:
               args:
                 name: orderCircuitBreaker
 
+        - id: spa-route
+          uri: ${SPA_URL:http://localhost:9004}
+          predicates:
+            - Path=/, /*.css, /*.js, /favicon.ico
+
+
 
       httpclient:
         connect-timeout: 2
@@ -52,7 +72,9 @@ spring:
           max-idle-time: 15s # 통신 채널이 닫히기전 기다리는 시간
           max-life-time: 60s # 통신 채널이 열려있는 시간
 
-      default-filters: # 기본필터 목록
+      default-filters: # 기본필터 목록 (모든 요청 적용)
+        - SaveSession # 호출 서비스로 요청을 전달하기전에 세션을 저장
+        - TokenRelay # 액세스 토큰을 호출 서비스에게 전달, 해당 필터 활성화 시 호출 서비스에게 Authorization 헤더와 함께 인증토큰이 전송됨
         - name: Retry
           args:
             retires: 3
@@ -73,8 +95,9 @@ spring:
               requestedTokens: 1 # 하나의 요청 처리에 몇개 토큰이 사용되는지 지정
               include-headers: false
 
-        - name: SaveSession
 
+
+## 레디스
   session:
     timeout: 10m
     redis:
@@ -105,6 +128,8 @@ resilience4j:
       defaults: # 모든 시간제한에 대한 기본 설정
         timeout-duration:
           seconds: 5
+
+
 
 
 logging:
