@@ -2,6 +2,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: polar-ingress
+  labels:
+    app: edge-service
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
@@ -9,7 +11,7 @@ spec:
   rules:
     - http: # http 트래픽에 대한 인그레스 규칙
         paths:
-          - path: /
+          - path: / # 모든 요청에 대한 기본 설정 규칙
             pathType: Prefix
             backend:
               service:
