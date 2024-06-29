@@ -28,7 +28,6 @@ import reactor.core.publisher.Mono;
 public class SecurityConfig {
 
 
-
     @Bean
     public SecurityWebFilterChain config(ServerHttpSecurity http,
                                          ReactiveClientRegistrationRepository clientRegistrationRepository){
