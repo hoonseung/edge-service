@@ -26,7 +26,7 @@ spring:
     timeout-per-shutdown-phase: 15s
   cloud:
     config:
-      uri: http://localhost:8888
+      uri: ""  #http://localhost:8888
       request-connect-timeout: 5000
       request-read-timeout: 5000
       fail-fast: false # 재시도 작동
@@ -129,9 +129,26 @@ resilience4j:
         timeout-duration:
           seconds: 5
 
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState, redis # 준비 상태 프로브는 애플리케이션의 준비 상태와 레디스의 상태를 모두 확인
 
 
 logging:
+  group:
+    circuitbreaker: io.github.resilience4j, org.springframework.cloud.circuitbreaker
   level:
-    io.github.resilience4j: debug
+    circuitbreaker: info
+  pattern:
+    level: "%5p [${spring.application.name},%X{trace_id},%X{span_id}]"

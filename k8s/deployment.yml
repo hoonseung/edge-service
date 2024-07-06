@@ -14,6 +14,11 @@ spec:
       name: edge-service
       labels:
         app: edge-service
+      annotations:
+        prometheus.io/scrape: "true" # 프로메테우스에게 이 파드에 있는 컨터에너로부터 데이터를 가져와야함을 알린다
+        prometheus.io/path: /actuator/prometheus # 프로메테우스 메트릭을 제공하는 http 엔드포인트 지정
+        prometheus.io/port: "9000" # 메트릭 엔드포인트 포트
+
     spec:
       containers:
         - name: edge-service
@@ -22,24 +27,40 @@ spec:
           ports:
             - containerPort: 9000
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9001
+            initialDelaySeconds: 13
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9000
+            initialDelaySeconds: 8
+            periodSeconds: 15
+
+
           lifecycle:
             preStop:
               exec:
                 command: [ "sh", "-c", "sleep 5" ]
 
           env:
-            - name: SPRING_CLOUD_CONFIG_URL
-              value: http://config-service
             - name: CATALOG_SERVICE_URL
               value: http://catalog-service
             - name: ORDER_SERVICE_URL
               value: http://order-service
-            - name: SPRING_DATA_REDIS_HOST
-              value: polar-redis
             - name: SPA_URL
               value: http://polar-ui
-            - name: SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI
-              value: http://polar-keycloak/realms/PolarBookshop
+
+          volumeMounts:
+            - mountPath: /workspace/config
+              name: edge-config-volume
+      volumes:
+        - name: edge-config-volume
+          configMap:
+            name: edge-config
 
 
 

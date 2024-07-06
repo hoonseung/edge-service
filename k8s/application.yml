@@ -1,0 +1,11 @@
+spring:
+  # 시큐리티 키클록
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/realms/PolarBookshop
+  data:
+    redis:
+      host: polar-redis
