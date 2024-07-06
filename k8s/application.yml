@@ -5,7 +5,7 @@ spring:
       client:
         provider:
           keycloak:
-            issuer-uri: http://localhost:8080/realms/PolarBookshop
+            issuer-uri: http://polar-keycloak/realms/PolarBookshop
   data:
     redis:
       host: polar-redis
